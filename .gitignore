@@ -1,0 +1,11 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# build artifacts
+*.so
+__mojocache__/
+
+# python
+__pycache__/
+*.pyc
