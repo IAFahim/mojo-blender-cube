@@ -107,18 +107,26 @@ so they're essentially free, sometimes faster than Python itself.
 
 ### Language vs language: Mojo vs C# (no Blender)
 
-Same fill algorithm, both at "full power" (i9-14900K, 32 threads):
+Same fill algorithm, i9-14900K (32 threads). Three C# strategies vs Mojo
+`parallelize` + SIMD:
 
-| | Mojo `parallelize`+SIMD | C# `Parallel.For`+`Vector<float>` |
-|---|---|---|
-| n=1024 (1M verts) | **0.64 ms** | 1.61 ms |
-| n=2048 (4.2M verts) | **4.25 ms** | 5.66 ms |
-| n=4096 (16.8M verts) | 22.1 ms | **20.7 ms** |
+| | Mojo | C# managed (`Vector`+`Parallel.For`) | C# god-tier (NT stores) |
+|---|---|---|---|
+| n=1024 (1M verts) | **0.64 ms** | 1.58 ms | 0.97 ms |
+| n=2048 (4.2M verts) | 4.25 ms | 4.88 ms | **3.15 ms** |
+| n=4096 (16.8M verts) | 22.1 ms | 19.5 ms | **11.6 ms** |
 
-Mojo wins 2.5x/1.3x where compute dominates (cheaper task dispatch,
-tighter codegen). At 16.8M verts both saturate ~22GB/s of memory
-bandwidth and tie — the language stops mattering. Neither side used
-non-temporal stores, the remaining trick for the memory-bound regime.
+**Mojo wins compute-bound sizes** (cheaper `parallelize` dispatch).
+**C# wins memory-bound sizes** — god-tier C# uses non-temporal stores
+(`Avx.StoreAlignedNonTemporal`, MOVNTPS) to eliminate read-for-ownership
+traffic (~470MB of dead reads at n=4096 → ~1.9x bandwidth). Getting there
+required `PermuteVar8x32`+`Blend` to transpose xyz-interleaved data into
+contiguous 256-bit stores, `NativeMemory.AlignedAlloc`, and a persistent
+spinning thread pool (`SpinPool`). Mojo 1.1 exposes no non-temporal store
+API (`llvm_intrinsic` has no movnt intrinsics in its bundled LLVM, no
+inline asm) — a current API gap, not a fundamental one.
+
+C# NT output is bitwise identical to the managed baseline.
 
 Run: `pixi run mojo run mojo/bench_gen.mojo -I mojo` and
 `cd csharp && dotnet run -c Release`.
