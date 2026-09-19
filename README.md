@@ -16,9 +16,12 @@ compiled SIMD + multithreading actually pays off.
 
 ```
 mojo/mojo_geo.mojo          Mojo source: CPython extension via PythonModuleBuilder
+mojo/grid_fill.mojo         shared grid fill (SIMD + parallelize), no Python deps
+mojo/bench_gen.mojo         native Mojo benchmark (no Python/Blender needed)
 addon/mojo_cube/__init__.py Blender addon (startup cube via load_factory_startup_post)
 python/bench.py             Python vs Mojo geometry benchmarks
 python/bench_interop.py     bpy call-overhead: Python-native vs Mojo->Python interop
+csharp/Program.cs           C# challenger: Parallel.For + System.Numerics SIMD
 pixi.toml                   env (mojo + max-core + python 3.14) & tasks
 ```
 
@@ -101,6 +104,24 @@ Same bpy call through `PythonObject` interop vs native Python:
 Mojo→CPython calls go through the C API directly — no bytecode dispatch —
 so they're essentially free, sometimes faster than Python itself.
 **The cost boundary is data marshalling, not calls.**
+
+### Language vs language: Mojo vs C# (no Blender)
+
+Same fill algorithm, both at "full power" (i9-14900K, 32 threads):
+
+| | Mojo `parallelize`+SIMD | C# `Parallel.For`+`Vector<float>` |
+|---|---|---|
+| n=1024 (1M verts) | **0.64 ms** | 1.61 ms |
+| n=2048 (4.2M verts) | **4.25 ms** | 5.66 ms |
+| n=4096 (16.8M verts) | 22.1 ms | **20.7 ms** |
+
+Mojo wins 2.5x/1.3x where compute dominates (cheaper task dispatch,
+tighter codegen). At 16.8M verts both saturate ~22GB/s of memory
+bandwidth and tie — the language stops mattering. Neither side used
+non-temporal stores, the remaining trick for the memory-bound regime.
+
+Run: `pixi run mojo run mojo/bench_gen.mojo -I mojo` and
+`cd csharp && dotnet run -c Release`.
 
 ## Notes
 

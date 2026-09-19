@@ -6,11 +6,12 @@ Functions:
   grid_into(verts, faces, n)   -> fills preallocated numpy buffers in place (zero marshalling)
 """
 
-from max.algorithm import parallelize
 from std.math import cos, sin
 from std.os import abort
 from std.python import Python, PythonObject
 from std.python.bindings import PythonModuleBuilder
+
+from grid_fill import fill_grid
 
 
 def cube() raises -> PythonObject:
@@ -67,51 +68,7 @@ def grid_into(
     var f_addr = Int(py=faces.ctypes.data)
     var vptr = Pointer[Float32, origin=MutAnyOrigin](unsafe_from_address=v_addr)
     var fptr = Pointer[Int32, origin=MutAnyOrigin](unsafe_from_address=f_addr)
-    var size = Float32(n - 1)
-    var freq = Float32(0.05)
-
-    comptime W = 8
-    var lane_idx = SIMD[.float32, W](0, 1, 2, 3, 4, 5, 6, 7)
-
-    def fill_row(i: Int) {imm vptr, imm fptr, imm n, imm size, imm freq, imm lane_idx}:
-        var fi = Float32(i)
-        var x = fi / size * 20.0 - 10.0
-        var sz = sin(fi * freq) * 4.0
-        var vbase = i * n * 3
-        var row = i * n
-        var fbase = i * (n - 1) * 4
-
-        # vertex positions: SIMD over j for the trig, scalar stores (interleaved xyz)
-        var j = 0
-        while j + W <= n:
-            var fj = SIMD[.float32, W](Float32(j)) + lane_idx
-            var yv = fj / size * 20.0 - 10.0
-            var zv = sz * cos(fj * freq)
-            comptime for l in range(W):
-                var p = vptr.unsafe_offset(vbase + (j + l) * 3)
-                p.unsafe_store(x)
-                p.unsafe_offset(1).unsafe_store(yv[l])
-                p.unsafe_offset(2).unsafe_store(zv[l])
-            j += W
-        while j < n:
-            var fj = Float32(j)
-            var p = vptr.unsafe_offset(vbase + j * 3)
-            p.unsafe_store(x)
-            p.unsafe_offset(1).unsafe_store(fj / size * 20.0 - 10.0)
-            p.unsafe_offset(2).unsafe_store(sz * cos(fj * freq))
-            j += 1
-
-        # quad faces for this row
-        if i < n - 1:
-            for q in range(n - 1):
-                var a = Int32(row + q)
-                var f = fptr.unsafe_offset(fbase + q * 4)
-                f.unsafe_store(a)
-                f.unsafe_offset(1).unsafe_store(a + 1)
-                f.unsafe_offset(2).unsafe_store(a + Int32(n) + 1)
-                f.unsafe_offset(3).unsafe_store(a + Int32(n))
-
-    parallelize(fill_row, n)
+    fill_grid(vptr, fptr, n)
     return Python.none()
 
 
