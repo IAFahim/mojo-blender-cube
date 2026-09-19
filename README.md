@@ -139,3 +139,24 @@ Run: `pixi run mojo run mojo/bench_gen.mojo -I mojo` and
   fails to compile under max-core 26.6).
 - The addon `.so` is ABI-bound to CPython 3.14 — rebuild per Blender's
   embedded Python version.
+
+### Mojo calling C# — NativeAOT + dlopen
+
+C# compiled to a native `.so` (`dotnet publish -c Release -r linux-x64`
+with `PublishAot`), `fill_grid` exported via `[UnmanagedCallersOnly]`,
+called from Mojo through `std.ffi.OwnedDLHandle` — raw pointers, zero
+marshalling. `mojo/call_csharp.mojo`:
+
+| | Mojo native fill | C# NT kernel called from Mojo |
+|---|---|---|
+| 1M verts | **0.64 ms** | 0.81 ms |
+| 4.2M verts | 4.25 ms | **3.40 ms** |
+| 16.8M verts | 22.1 ms | **13.6 ms** |
+
+Best architecture: Mojo orchestrates, C# supplies the non-temporal stores
+Mojo 1.1 can't emit. Gotcha: NativeAOT defaults to x86-64 baseline ISA —
+AVX intrinsics throw `PlatformNotSupported` without
+`<IlcInstructionSet>avx2</IlcInstructionSet>`.
+
+Other routes: `hostfxr` embedding (non-AOT managed hosting), or
+Mojo→Python→pythonnet (two interop hops).
