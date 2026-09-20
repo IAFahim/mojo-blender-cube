@@ -7,10 +7,17 @@ version = "0.1.0"
 
 [tasks]
 # Compile the Mojo geometry engine into the addon's CPython extension (.so)
-build = "mojo build --emit shared-lib -o addon/mojo_cube/mojo_geo.so mojo/mojo_geo.mojo"
+build = "mojo build --emit shared-lib -I mojo -o addon/mojo_cube/mojo_geo.so mojo/mojo_geo.mojo"
 # Run the benchmarks inside Blender (background mode)
 bench = "blender -b --python python/bench.py"
 bench-interop = "blender -b --python python/bench_interop.py"
+# Native Mojo benchmark (no Python/Blender)
+bench-mojo = "mojo run mojo/bench_gen.mojo -I mojo"
+# C# side: JIT benchmark and NativeAOT shared library
+bench-csharp = "cd csharp && dotnet run -c Release"
+build-csharp-native = "cd csharp_native && dotnet publish -c Release -r linux-x64"
+# Mojo calling the C# NativeAOT library via dlopen (requires build-csharp-native first)
+bench-mojo-csharp = "mojo run mojo/call_csharp.mojo"
 
 [dependencies]
 mojo = ">=1.1.0,<2"

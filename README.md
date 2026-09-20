@@ -128,8 +128,7 @@ inline asm) — a current API gap, not a fundamental one.
 
 C# NT output is bitwise identical to the managed baseline.
 
-Run: `pixi run mojo run mojo/bench_gen.mojo -I mojo` and
-`cd csharp && dotnet run -c Release`.
+Run: `pixi run bench-mojo` and `pixi run bench-csharp`.
 
 ## Notes
 
@@ -149,9 +148,11 @@ marshalling. `mojo/call_csharp.mojo`:
 
 | | Mojo native fill | C# NT kernel called from Mojo |
 |---|---|---|
-| 1M verts | **0.64 ms** | 0.81 ms |
-| 4.2M verts | 4.25 ms | **3.40 ms** |
-| 16.8M verts | 22.1 ms | **13.6 ms** |
+| 1M verts | **0.64 ms** | 0.79 ms |
+| 4.2M verts | 4.25 ms | **3.15 ms** |
+| 16.8M verts | 22.1 ms | **11.4 ms** |
+
+Run: `pixi run build-csharp-native` once, then `pixi run bench-mojo-csharp`.
 
 Best architecture: Mojo orchestrates, C# supplies the non-temporal stores
 Mojo 1.1 can't emit. Gotcha: NativeAOT defaults to x86-64 baseline ISA —
