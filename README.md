@@ -161,3 +161,6 @@ AVX intrinsics throw `PlatformNotSupported` without
 
 Other routes: `hostfxr` embedding (non-AOT managed hosting), or
 Mojo→Python→pythonnet (two interop hops).
+
+**Full guide:** [docs/interop-mojo-csharp.md](docs/interop-mojo-csharp.md) —
+step-by-step, type marshalling table, and every gotcha we hit.
