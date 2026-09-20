@@ -95,12 +95,45 @@ public static unsafe class MeshFill
         }
     }
 
+    static readonly int* _progress = (int*)NativeMemory.AllocZeroed(sizeof(int));
+    static int* Progress => _progress;
+
+    [UnmanagedCallersOnly(EntryPoint = "get_progress_ptr")]
+    public static IntPtr GetProgressPtr() => (IntPtr)Progress;
+
     [UnmanagedCallersOnly(EntryPoint = "fill_grid")]
     public static void FillGrid(float* verts, int* faces, long n64)
     {
         int n = (int)n64;
-        Parallel.For(0, n, i => FillRowNt(verts, faces, i, n));
+        *Progress = 0;
+        Parallel.For(0, n, i =>
+        {
+            FillRowNt(verts, faces, i, n);
+            Interlocked.Increment(ref *Progress);
+        });
         Sse.StoreFence();
+    }
+
+    // Fire-and-forget: fills on the .NET thread pool; caller polls progress ptr.
+    [UnmanagedCallersOnly(EntryPoint = "fill_grid_async")]
+    public static void FillGridAsync(IntPtr verts, IntPtr faces, long n64)
+    {
+        int n = (int)n64;
+        *Progress = 0;
+        Task.Run(() =>
+        {
+            unsafe
+            {
+                float* vp = (float*)verts;
+                int* fp = (int*)faces;
+                Parallel.For(0, n, i =>
+                {
+                    FillRowNt(vp, fp, i, n);
+                    Interlocked.Increment(ref *Progress);
+                });
+            }
+            Sse.StoreFence();
+        });
     }
 }
 

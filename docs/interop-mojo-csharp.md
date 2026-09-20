@@ -180,3 +180,25 @@ private static partial int answer();
 ```bash
 pixi run build-csharp-native && pixi run bench-mojo-csharp
 ```
+
+## Owning the runtime — async + live shared state
+
+`fill_grid_async` runs the fill on .NET's thread pool and returns immediately.
+`get_progress_ptr` hands out a pointer to unmanaged counter memory that worker
+threads `Interlocked.Increment`. Mojo polls that pointer and watches progress
+live — C# never calls back; it just writes its own memory.
+
+```mojo
+var progress = Pointer[Int32, MutAnyOrigin](
+    unsafe_from_address=Int(lib.get_function[Int64]("get_progress_ptr")())
+)
+fill_async(vptr, fptr, n)               # returns instantly
+while Int(progress.unsafe_load()) < n:  # mojo watches the CLR work
+    sleep(0.0005)
+```
+
+This is the shared-memory pattern: one pointer handoff, then each side reads
+and writes on its own schedule. The whole CLR — GC, thread pool, `Task` — is
+hosted inside the Mojo process via the `.so`.
+
+Run: `pixi run bench-mojo-csharp-live`
