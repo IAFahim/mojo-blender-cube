@@ -18,11 +18,11 @@ bench-csharp = "cd csharp && dotnet run -c Release"
 build-csharp-native = "cd csharp_native && dotnet publish -c Release -r linux-x64"
 # Mojo calling the C# NativeAOT library via dlopen (requires build-csharp-native first)
 bench-mojo-csharp = "mojo run mojo/call_csharp.mojo"
+# Mojo owns the CLR: async fill + live progress polling through shared memory
+bench-mojo-csharp-live = "mojo run mojo/call_csharp_live.mojo"
 
 [dependencies]
 mojo = ">=1.1.0,<2"
 python = "3.14.*"
 numpy = ">=2.5.3,<3"
 max-core = ">=26.6.0,<27"
-# Mojo owns the CLR: async fill + live progress polling through shared memory
-bench-mojo-csharp-live = "mojo run mojo/call_csharp_live.mojo"
